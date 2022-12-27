@@ -1,5 +1,4 @@
-# cdm
-code design mode 
+# cdm （Code Design Mode ）
 ## 代码设计模式
 > 设计模式抽象包，把一些流程化的东西抽象聚合，项目之间可以直接引用
 
