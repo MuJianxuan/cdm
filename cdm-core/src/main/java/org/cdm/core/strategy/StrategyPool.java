@@ -1,5 +1,7 @@
 package org.cdm.core.strategy;
 
+import org.cdm.core.action.Action;
+
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -9,19 +11,18 @@ import java.util.stream.Collectors;
  * @author Rao
  * @Date 2021-11-01
  **/
-public class StrategyPool<T extends BaseStrategyKey> {
-    private final Map<String, Strategy<T>> strategyMap;
+public class StrategyPool<T extends BaseStrategyKey,R> implements Action<T,R> {
+    private final Map<String, Strategy<T,R>> strategyMap;
 
-    public StrategyPool(List<Strategy<T>> strategyList ) {
+    public StrategyPool(List<Strategy<T,R>> strategyList ) {
         this.strategyMap = strategyList.stream().filter(strategy -> Objects.nonNull(strategy.strategyKey())).collect(Collectors.toMap(strategy -> strategy.strategyKey().key(), Function.identity()));
     }
 
-    /**
-     * 执行业务
-     * @param param
-     */
-    public void execute(T param){
-        Strategy<T> strategy = Optional.ofNullable(strategyMap).orElse(new HashMap<>()).get(param.key());
-        Optional.ofNullable(strategy).orElseThrow(() -> new RuntimeException("No strategy found!")).execute(param);
+
+    @Override
+    public R doAction(T param) {
+        Strategy<T,R> strategy = Optional.ofNullable(strategyMap).orElse(new HashMap<>(2)).get(param.key());
+        return Optional.ofNullable(strategy).orElseThrow(() -> new RuntimeException("No strategy found!")).doAction(param);
     }
+
 }
