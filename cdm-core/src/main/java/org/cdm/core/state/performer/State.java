@@ -1,4 +1,4 @@
-package org.cdm.core.state;
+package org.cdm.core.state.performer;
 
 import org.cdm.core.action.Action;
 
