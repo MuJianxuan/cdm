@@ -24,6 +24,6 @@ public abstract class AbstractEventBehaviorHandler<T extends StateMachineId> imp
      * 触发事件
      * @return
      */
-    protected abstract DrivenEvent drivenEvent();
+    public abstract DrivenEvent drivenEvent();
 
 }
