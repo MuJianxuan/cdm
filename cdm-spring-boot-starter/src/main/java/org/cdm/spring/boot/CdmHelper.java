@@ -1,4 +1,4 @@
-package org.cdm.spring.booot.starter;
+package org.cdm.spring.boot;
 
 import org.cdm.core.eventdrivenstatemachine.*;
 import org.springframework.beans.factory.ObjectProvider;

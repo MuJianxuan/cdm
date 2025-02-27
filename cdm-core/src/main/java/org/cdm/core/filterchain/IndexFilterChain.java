@@ -14,7 +14,7 @@ import java.util.List;
 public class IndexFilterChain<T> implements FilterChain<T> {
 
     private final List<Filter<T>> filterList;
-    private Integer index = 0;
+    private int index = 0;
 
     public IndexFilterChain(List<Filter<T>> filterList) {
         this.filterList = filterList;

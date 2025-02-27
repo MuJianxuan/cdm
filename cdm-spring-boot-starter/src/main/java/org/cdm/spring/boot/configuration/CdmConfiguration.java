@@ -1,6 +1,6 @@
-package org.cdm.spring.booot.starter.configuration;
+package org.cdm.spring.boot.configuration;
 
-import org.cdm.spring.booot.starter.CdmHelper;
+import org.cdm.spring.boot.CdmHelper;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
