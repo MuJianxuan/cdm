@@ -21,7 +21,7 @@
         <java.version>21</java.version>
         <maven.compiler.source>21</maven.compiler.source>
 
-        <rversion>1.0.0-SNAPSHOT</rversion>
+        <revision>1.0.0-SNAPSHOT</revision>
         <spring-boot.version>3.2.12</spring-boot.version>
 
     </properties>
