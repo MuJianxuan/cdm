@@ -32,3 +32,5 @@ target/
 .vscode
 #gradle
 .gradle
+
+.memory-bank
