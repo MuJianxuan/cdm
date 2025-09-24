@@ -12,7 +12,7 @@ CDM (Code Design Mode) 是一个专业的Java设计模式抽象库，致力于�
 
 ### ✨ 核心特性
 
-- **🎯 六大设计模式**：动作模式、单例模式、策略模式、事件驱动状态机、过滤器链、责任链
+- **🎯 八大设计模式**：动作模式、单例模式、策略模式、事件驱动状态机、过滤器链、责任链、装饰器模式、工厂模式
 - **🔧 Spring Boot集成**：开箱即用的自动配置和依赖注入
 - **⚡ Java 21支持**：充分利用现代Java特性，包括预览功能
 - **🏗️ 多模块架构**：清晰的项目结构，便于扩展和维护
@@ -34,7 +34,7 @@ cdm/
 ### 模块说明
 
 #### cdm-core
-核心设计模式实现模块，包含33个Java文件，实现了6种经典设计模式：
+核心设计模式实现模块，包含50+个Java文件，实现了8种经典设计模式：
 
 - **动作模式 (Action)**：函数式接口，提供灵活的参数处理和结果返回
 - **单例模式 (Singleton)**：多种线程安全实现（双重检查、饿汉式、枚举）
@@ -42,6 +42,8 @@ cdm/
 - **事件驱动状态机 (EventDrivenStateMachine)**：复杂业务流程的状态管理
 - **过滤器链 (FilterChain)**：请求处理的链式过滤机制
 - **责任链 (ResponsibilityChain)**：请求分发的链式处理模式
+- **装饰器模式 (Decorator)**：灵活的对象装饰机制，支持链式装饰和构建器模式
+- **工厂模式 (Factory)**：多层次工厂实现，包括简单工厂、抽象工厂和对象池工厂
 
 #### cdm-spring-boot-starter
 Spring Boot自动配置模块，提供：
@@ -178,7 +180,133 @@ Strategy<PaymentType, String> strategy = new PaymentStrategy(PaymentType.ALIPAY)
 String result = strategy.doAction(PaymentType.ALIPAY);
 ```
 
-#### 4. Spring Boot集成使用
+#### 4. 装饰器模式使用
+```java
+import org.cdm.core.decorator.Decorator;
+import org.cdm.core.decorator.impl.SimpleDecorator;
+import org.cdm.core.decorator.impl.ChainDecorator;
+import org.cdm.core.decorator.DecoratorBuilder;
+import org.cdm.core.decorator.impl.DecoratorBuilderImpl;
+
+// 定义被装饰的组件
+class TextComponent {
+    private String text;
+    
+    public TextComponent(String text) {
+        this.text = text;
+    }
+    
+    public String getText() {
+        return text;
+    }
+    
+    public void setText(String text) {
+        this.text = text;
+    }
+}
+
+// 使用简单装饰器
+TextComponent original = new TextComponent("Hello World");
+Decorator<TextComponent> simpleDecorator = new SimpleDecorator<>(original, component -> {
+    TextComponent decorated = new TextComponent(component.getText().toUpperCase());
+    return decorated;
+});
+TextComponent decorated = simpleDecorator.getComponent();
+System.out.println("装饰后文本: " + decorated.getText()); // 输出: HELLO WORLD
+
+// 使用链式装饰器
+ChainDecorator<TextComponent> chainDecorator = new ChainDecorator<>(original)
+    .addDecorator(component -> new TextComponent(component.getText().toUpperCase()))
+    .addDecorator(component -> new TextComponent("*** " + component.getText() + " ***"));
+TextComponent chainDecorated = chainDecorator.getDecoratedComponent();
+System.out.println("链式装饰后文本: " + chainDecorated.getText()); // 输出: *** HELLO WORLD ***
+
+// 使用装饰器构建器
+DecoratorBuilder<TextComponent> builder = new DecoratorBuilderImpl<>(original)
+    .add(component -> new TextComponent(component.getText().toUpperCase()))
+    .add(component -> new TextComponent(">>> " + component.getText() + " <<<"));
+TextComponent builtDecorated = builder.build();
+System.out.println("构建器装饰后文本: " + builtDecorated.getText()); // 输出: >>> HELLO WORLD <<<
+```
+
+#### 5. 工厂模式使用
+```java
+import org.cdm.core.factory.Factory;
+import org.cdm.core.factory.AbstractFactory;
+import org.cdm.core.factory.FactoryKey;
+import org.cdm.core.factory.PooledFactory;
+import org.cdm.core.factory.impl.SimpleFactory;
+import org.cdm.core.factory.impl.AbstractFactoryImpl;
+import org.cdm.core.factory.impl.PooledFactoryImpl;
+
+// 定义产品类
+class Product {
+    private String name;
+    private String type;
+    
+    public Product(String name, String type) {
+        this.name = name;
+        this.type = type;
+    }
+    
+    public String getName() { return name; }
+    public String getType() { return type; }
+    
+    @Override
+    public String toString() {
+        return "Product{name='" + name + "', type='" + type + "'}";
+    }
+}
+
+// 定义工厂键
+class ProductFactoryKey implements FactoryKey {
+    private final String type;
+    
+    public ProductFactoryKey(String type) {
+        this.type = type;
+    }
+    
+    @Override
+    public String key() {
+        return type;
+    }
+}
+
+// 使用简单工厂
+Factory<String, Product> simpleFactory = new SimpleFactory<>(name -> new Product(name, "simple"));
+Product product1 = simpleFactory.create("SimpleProduct");
+System.out.println("创建产品: " + product1);
+
+// 使用抽象工厂
+AbstractFactory<ProductFactoryKey, Product> abstractFactory = new AbstractFactoryImpl<>();
+
+// 注册具体工厂
+abstractFactory.registerFactory("electronic", key -> new Product(key.key(), "electronic"));
+abstractFactory.registerFactory("clothing", key -> new Product(key.key(), "clothing"));
+
+// 通过键创建对象
+Product electronicProduct = abstractFactory.create(new ProductFactoryKey("electronic"));
+Product clothingProduct = abstractFactory.create(new ProductFactoryKey("clothing"));
+
+System.out.println("电子产品: " + electronicProduct);
+System.out.println("服装产品: " + clothingProduct);
+
+// 使用对象池工厂
+PooledFactory<String, Product> pooledFactory = new PooledFactoryImpl<>(
+    name -> new Product(name, "pooled"),
+    5 // 最大池大小
+);
+
+// 创建并借用对象
+Product pooledProduct1 = pooledFactory.borrowObject("PooledProduct1");
+System.out.println("创建池化产品: " + pooledProduct1);
+
+// 归还对象到池中
+pooledFactory.returnObject(pooledProduct1);
+System.out.println("归还产品到池中，当前池大小: " + ((PooledFactoryImpl<String, Product>) pooledFactory).getPoolSize());
+```
+
+#### 6. Spring Boot集成使用
 ```java
 import org.cdm.spring.boot.CdmHelper;
 import org.springframework.beans.factory.annotation.Autowired;
