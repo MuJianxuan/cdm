@@ -6,7 +6,7 @@
 
 ## 📋 模块简介
 
-cdm-core是CDM项目的核心模块，包含了6种经典设计模式的现代化Java实现。模块采用Java 21最新特性，提供类型安全、线程安全、高性能的设计模式抽象，帮助开发者在企业级应用中优雅地解决常见的设计问题。
+cdm-core是CDM项目的核心模块，包含了8种经典设计模式的现代化Java实现。模块采用Java 21最新特性，提供类型安全、线程安全、高性能的设计模式抽象，帮助开发者在企业级应用中优雅地解决常见的设计问题。
 
 ### ✨ 设计模式概览
 
@@ -18,6 +18,8 @@ cdm-core是CDM项目的核心模块，包含了6种经典设计模式的现代�
 | **事件驱动状态机** | `EventDrivenStateMachine<T>` | 复杂状态管理 | 订单流程、工作流 |
 | **过滤器链** | `FilterChain<T>` | 请求链式处理 | 权限验证、日志记录 |
 | **责任链** | `ResponsibilityChain<T>` | 请求分发处理 | 审批流程、异常处理 |
+| **装饰器模式** | `Decorator<T>` | 对象动态装饰 | 功能扩展、AOP |
+| **工厂模式** | `Factory<T,R>` | 对象创建管理 | 复杂对象创建、依赖注入 |
 
 ## 🎯 设计模式详解
 
@@ -766,6 +768,710 @@ public class ApprovalService {
 }
 ```
 
+### 7. 装饰器模式 (Decorator Pattern)
+
+装饰器模式允许向一个对象动态地添加新的行为，而不需要修改该对象的基类或使用继承。cdm-core提供了灵活的装饰器实现，支持链式装饰和构建器模式。
+
+#### 核心接口
+
+##### 装饰器基础接口
+```java
+public interface Decorator<T> {
+    /**
+     * 获取被装饰的原始组件
+     * @return 被装饰的原始组件实例
+     */
+    T getComponent();
+}
+```
+
+##### 可装饰组件接口
+```java
+public interface Decoratable<T> {
+    /**
+     * 装饰当前组件
+     * @param decorator 装饰器函数
+     * @return 装饰后的组件
+     */
+    T decorate(Function<T, T> decorator);
+    
+    /**
+     * 解包装饰器
+     * @return 原始组件
+     */
+    T unwrap();
+}
+```
+
+##### 装饰器构建器接口
+```java
+public interface DecoratorBuilder<T> {
+    /**
+     * 添加装饰器
+     * @param decorator 装饰器函数
+     * @return 构建器实例，支持链式调用
+     */
+    DecoratorBuilder<T> add(Function<T, T> decorator);
+    
+    /**
+     * 构建装饰后的组件
+     * @return 装饰后的组件实例
+     */
+    T build();
+}
+```
+
+#### 实现方式
+
+##### 简单装饰器 (SimpleDecorator)
+```java
+import org.cdm.core.decorator.impl.SimpleDecorator;
+
+// 定义被装饰的组件
+class TextComponent {
+    private String text;
+    
+    public TextComponent(String text) {
+        this.text = text;
+    }
+    
+    public String getText() {
+        return text;
+    }
+    
+    public void setText(String text) {
+        this.text = text;
+    }
+    
+    @Override
+    public String toString() {
+        return "TextComponent{text='" + text + "'}";
+    }
+}
+
+// 创建简单装饰器
+TextComponent original = new TextComponent("Hello World");
+Decorator<TextComponent> simpleDecorator = new SimpleDecorator<>(original, component -> {
+    TextComponent decorated = new TextComponent(component.getText().toUpperCase());
+    return decorated;
+});
+
+// 获取装饰后的组件
+TextComponent decorated = simpleDecorator.getComponent();
+System.out.println("装饰后文本: " + decorated.getText()); // 输出: HELLO WORLD
+```
+
+##### 链式装饰器 (ChainDecorator)
+```java
+import org.cdm.core.decorator.impl.ChainDecorator;
+
+// 创建链式装饰器
+ChainDecorator<TextComponent> chainDecorator = new ChainDecorator<>(original)
+    .addDecorator(component -> new TextComponent(component.getText().toUpperCase()))
+    .addDecorator(component -> new TextComponent("*** " + component.getText() + " ***"))
+    .addDecorator(component -> new TextComponent("[INFO] " + component.getText()));
+
+// 获取装饰后的组件
+TextComponent chainDecorated = chainDecorator.getDecoratedComponent();
+System.out.println("链式装饰后文本: " + chainDecorated.getText()); 
+// 输出: [INFO] *** HELLO WORLD ***
+
+// 获取装饰器数量
+System.out.println("装饰器数量: " + chainDecorator.getDecoratorCount()); // 输出: 3
+
+// 获取装饰器列表
+List<Function<TextComponent, TextComponent>> decorators = chainDecorator.getDecorators();
+```
+
+##### 装饰器构建器 (DecoratorBuilder)
+```java
+import org.cdm.core.decorator.impl.DecoratorBuilderImpl;
+
+// 使用装饰器构建器
+DecoratorBuilder<TextComponent> builder = new DecoratorBuilderImpl<>(original)
+    .add(component -> new TextComponent(component.getText().toUpperCase()))
+    .add(component -> new TextComponent(">>> " + component.getText() + " <<<"))
+    .add(component -> new TextComponent("[BUILDER] " + component.getText()));
+
+// 构建装饰后的组件
+TextComponent builtDecorated = builder.build();
+System.out.println("构建器装饰后文本: " + builtDecorated.getText()); 
+// 输出: [BUILDER] >>> HELLO WORLD <<<
+```
+
+#### 高级用法
+
+##### 自定义装饰器
+```java
+// 日志装饰器
+public class LoggingDecorator<T> implements Decorator<T> {
+    private final T component;
+    private final Logger logger = LoggerFactory.getLogger(LoggingDecorator.class);
+    
+    public LoggingDecorator(T component) {
+        this.component = component;
+    }
+    
+    @Override
+    public T getComponent() {
+        logger.info("Accessing component: {}", component.getClass().getSimpleName());
+        return component;
+    }
+}
+
+// 缓存装饰器
+public class CachingDecorator<T> implements Decorator<T> {
+    private final T component;
+    private final Map<String, Object> cache = new ConcurrentHashMap<>();
+    
+    public CachingDecorator(T component) {
+        this.component = component;
+    }
+    
+    @Override
+    public T getComponent() {
+        return component;
+    }
+    
+    public Object getCachedResult(String key, Supplier<Object> supplier) {
+        return cache.computeIfAbsent(key, k -> {
+            logger.debug("Cache miss for key: {}", k);
+            return supplier.get();
+        });
+    }
+    
+    public void clearCache() {
+        cache.clear();
+    }
+}
+```
+
+##### 组合装饰器
+```java
+// 组合多个装饰器
+public class CompositeDecorator<T> implements Decorator<T> {
+    private final T component;
+    private final List<Decorator<T>> decorators;
+    
+    public CompositeDecorator(T component, List<Decorator<T>> decorators) {
+        this.component = component;
+        this.decorators = new ArrayList<>(decorators);
+    }
+    
+    @Override
+    public T getComponent() {
+        T result = component;
+        for (Decorator<T> decorator : decorators) {
+            result = decorator.getComponent();
+        }
+        return result;
+    }
+    
+    public void addDecorator(Decorator<T> decorator) {
+        decorators.add(decorator);
+    }
+    
+    public void removeDecorator(Decorator<T> decorator) {
+        decorators.remove(decorator);
+    }
+}
+```
+
+##### 条件装饰器
+```java
+// 条件装饰器
+public class ConditionalDecorator<T> implements Decorator<T> {
+    private final T component;
+    private final Predicate<T> condition;
+    private final Function<T, T> decoratorFunction;
+    
+    public ConditionalDecorator(T component, Predicate<T> condition, Function<T, T> decoratorFunction) {
+        this.component = component;
+        this.condition = condition;
+        this.decoratorFunction = decoratorFunction;
+    }
+    
+    @Override
+    public T getComponent() {
+        if (condition.test(component)) {
+            return decoratorFunction.apply(component);
+        }
+        return component;
+    }
+}
+
+// 使用条件装饰器
+TextComponent conditionalComponent = new TextComponent("Hello World");
+Decorator<TextComponent> conditionalDecorator = new ConditionalDecorator<>(
+    conditionalComponent,
+    comp -> comp.getText().length() > 5,
+    comp -> new TextComponent(comp.getText().toUpperCase())
+);
+
+TextComponent conditionalResult = conditionalDecorator.getComponent();
+System.out.println("条件装饰结果: " + conditionalResult.getText()); // 输出: HELLO WORLD
+```
+
+#### 实际应用场景
+
+##### 数据处理管道
+```java
+// 数据处理装饰器
+public class DataProcessingDecorator implements Decorator<String> {
+    private final String data;
+    
+    public DataProcessingDecorator(String data) {
+        this.data = data;
+    }
+    
+    @Override
+    public String getComponent() {
+        return data;
+    }
+}
+
+// 构建数据处理管道
+String rawData = "  hello,world,java,decorator  ";
+DecoratorBuilder<String> dataPipeline = new DecoratorBuilderImpl<>(rawData)
+    .add(String::trim)                    // 去除首尾空格
+    .add(s -> s.toUpperCase())           // 转大写
+    .add(s -> s.replace(",", " "))        // 替换逗号为空格
+    .add(s -> "PROCESSED: " + s);        // 添加前缀
+
+String processedData = dataPipeline.build();
+System.out.println("处理后的数据: " + processedData);
+// 输出: PROCESSED: HELLO WORLD JAVA DECORATOR
+```
+
+##### HTTP请求装饰器
+```java
+// HTTP请求装饰器
+public class HttpRequestDecorator implements Decorator<HttpRequest> {
+    private final HttpRequest request;
+    
+    public HttpRequestDecorator(HttpRequest request) {
+        this.request = request;
+    }
+    
+    @Override
+    public HttpRequest getComponent() {
+        return request;
+    }
+}
+
+// 构建HTTP请求装饰链
+HttpRequest httpRequest = new HttpRequest("/api/users", "GET");
+ChainDecorator<HttpRequest> requestDecorator = new ChainDecorator<>(httpRequest)
+    .addDecorator(req -> {
+        // 添加认证头
+        req.addHeader("Authorization", "Bearer token123");
+        return req;
+    })
+    .addDecorator(req -> {
+        // 添加请求ID
+        req.addHeader("X-Request-ID", UUID.randomUUID().toString());
+        return req;
+    })
+    .addDecorator(req -> {
+        // 添加时间戳
+        req.addHeader("X-Timestamp", String.valueOf(System.currentTimeMillis()));
+        return req;
+    });
+
+HttpRequest decoratedRequest = requestDecorator.getDecoratedComponent();
+```
+
+### 8. 工厂模式 (Factory Pattern)
+
+工厂模式提供了一种创建对象的接口，让子类决定实例化哪一个类。cdm-core提供了多层次的工厂实现，包括简单工厂、抽象工厂和对象池工厂。
+
+#### 核心接口
+
+##### 基础工厂接口
+```java
+public interface Factory<T, R> extends Action<T, R> {
+    /**
+     * 创建对象
+     * @param param 创建参数
+     * @return 创建的对象
+     */
+    R create(T param);
+}
+```
+
+##### 抽象工厂接口
+```java
+public interface AbstractFactory<T extends FactoryKey, R> {
+    /**
+     * 注册工厂
+     * @param key 工厂键
+     * @param factory 工厂实例
+     */
+    void registerFactory(String key, Factory<T, R> factory);
+    
+    /**
+     * 注销工厂
+     * @param key 工厂键
+     * @return 被移除的工厂实例
+     */
+    Factory<T, R> unregisterFactory(String key);
+    
+    /**
+     * 获取工厂
+     * @param key 工厂键
+     * @return 工厂实例
+     */
+    Factory<T, R> getFactory(T key);
+    
+    /**
+     * 通过键创建对象
+     * @param key 工厂键
+     * @return 创建的对象
+     */
+    R create(T key);
+    
+    /**
+     * 通过键和参数创建对象
+     * @param key 工厂键
+     * @param param 创建参数
+     * @return 创建的对象
+     */
+    <P> R create(T key, P param);
+}
+```
+
+##### 工厂键接口
+```java
+public interface FactoryKey {
+    /**
+     * 获取工厂键
+     * @return 工厂键字符串
+     */
+    String key();
+}
+```
+
+##### 对象池工厂接口
+```java
+public interface PooledFactory<T, R> extends Factory<T, R> {
+    /**
+     * 借用对象
+     * @param param 借用参数
+     * @return 借用的对象
+     */
+    R borrowObject(T param);
+    
+    /**
+     * 归还对象
+     * @param object 要归还的对象
+     */
+    void returnObject(R object);
+    
+    /**
+     * 清空对象池
+     */
+    void clearPool();
+}
+```
+
+#### 实现方式
+
+##### 简单工厂 (SimpleFactory)
+```java
+import org.cdm.core.factory.impl.SimpleFactory;
+
+// 定义产品类
+class Product {
+    private String name;
+    private String type;
+    
+    public Product(String name, String type) {
+        this.name = name;
+        this.type = type;
+    }
+    
+    public String getName() { return name; }
+    public String getType() { return type; }
+    
+    @Override
+    public String toString() {
+        return "Product{name='" + name + "', type='" + type + "'}";
+    }
+}
+
+// 使用函数式接口创建简单工厂
+Factory<String, Product> simpleFactory = new SimpleFactory<>(name -> new Product(name, "simple"));
+Product product1 = simpleFactory.create("SimpleProduct");
+System.out.println("创建产品: " + product1);
+
+// 使用实例创建简单工厂
+Product fixedProduct = new Product("FixedProduct", "fixed");
+Factory<String, Product> fixedFactory = new SimpleFactory<>(fixedProduct);
+Product product2 = fixedFactory.create("any param"); // 忽略参数，返回固定实例
+System.out.println("固定产品: " + product2);
+```
+
+##### 抽象工厂 (AbstractFactory)
+```java
+import org.cdm.core.factory.impl.AbstractFactoryImpl;
+
+// 定义工厂键
+class ProductFactoryKey implements FactoryKey {
+    private final String type;
+    
+    public ProductFactoryKey(String type) {
+        this.type = type;
+    }
+    
+    @Override
+    public String key() {
+        return type;
+    }
+    
+    @Override
+    public String toString() {
+        return "ProductFactoryKey{type='" + type + "'}";
+    }
+}
+
+// 创建抽象工厂
+AbstractFactory<ProductFactoryKey, Product> abstractFactory = new AbstractFactoryImpl<>();
+
+// 注册具体工厂
+abstractFactory.registerFactory("electronic", key -> new Product(key.key(), "electronic"));
+abstractFactory.registerFactory("clothing", key -> new Product(key.key(), "clothing"));
+abstractFactory.registerFactory("food", key -> new Product(key.key(), "food"));
+
+// 通过键创建对象
+Product electronicProduct = abstractFactory.create(new ProductFactoryKey("electronic"));
+Product clothingProduct = abstractFactory.create(new ProductFactoryKey("clothing"));
+Product foodProduct = abstractFactory.create(new ProductFactoryKey("food"));
+
+System.out.println("电子产品: " + electronicProduct);
+System.out.println("服装产品: " + clothingProduct);
+System.out.println("食品产品: " + foodProduct);
+
+// 通过键和参数创建对象
+Product customElectronic = abstractFactory.create(new ProductFactoryKey("electronic"), "iPhone");
+System.out.println("自定义电子产品: " + customElectronic);
+
+// 工厂管理功能
+System.out.println("已注册工厂数量: " + abstractFactory.size());
+System.out.println("已注册的工厂键: " + abstractFactory.getRegisteredKeys());
+System.out.println("是否包含'electronic'工厂: " + abstractFactory.containsFactory(new ProductFactoryKey("electronic")));
+
+// 获取具体工厂
+Factory<ProductFactoryKey, Product> factory = abstractFactory.getFactory(new ProductFactoryKey("electronic"));
+System.out.println("获取的工厂实例: " + factory);
+
+// 注销工厂
+abstractFactory.unregisterFactory("food");
+System.out.println("注销'food'工厂后数量: " + abstractFactory.size());
+```
+
+##### 对象池工厂 (PooledFactory)
+```java
+import org.cdm.core.factory.impl.PooledFactoryImpl;
+
+// 创建对象池工厂
+PooledFactory<String, Product> pooledFactory = new PooledFactoryImpl<>(
+    name -> new Product(name, "pooled"),
+    5 // 最大池大小
+);
+
+// 创建并借用对象
+Product pooledProduct1 = pooledFactory.borrowObject("PooledProduct1");
+Product pooledProduct2 = pooledFactory.borrowObject("PooledProduct2");
+System.out.println("创建池化产品1: " + pooledProduct1);
+System.out.println("创建池化产品2: " + pooledProduct2);
+
+// 归还对象到池中
+pooledFactory.returnObject(pooledProduct1);
+pooledFactory.returnObject(pooledProduct2);
+System.out.println("归还产品到池中，当前池大小: " + ((PooledFactoryImpl<String, Product>) pooledFactory).getPoolSize());
+
+// 从池中借用对象（应该重用之前的对象）
+Product pooledProduct3 = pooledFactory.borrowObject("PooledProduct3");
+System.out.println("从池中借用产品: " + pooledProduct3);
+System.out.println("当前池大小: " + ((PooledFactoryImpl<String, Product>) pooledFactory).getPoolSize());
+
+// 清空池
+pooledFactory.clearPool();
+System.out.println("清空池后大小: " + ((PooledFactoryImpl<String, Product>) pooledFactory).getPoolSize());
+```
+
+#### 高级用法
+
+##### 自定义工厂实现
+```java
+// 数据库连接工厂
+public class DatabaseConnectionFactory implements Factory<String, Connection> {
+    private final String url;
+    private final String username;
+    private final String password;
+    
+    public DatabaseConnectionFactory(String url, String username, String password) {
+        this.url = url;
+        this.username = username;
+        this.password = password;
+    }
+    
+    @Override
+    public Connection create(String databaseName) {
+        try {
+            String fullUrl = url + "/" + databaseName;
+            return DriverManager.getConnection(fullUrl, username, password);
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to create database connection", e);
+        }
+    }
+}
+
+// 使用自定义工厂
+Factory<String, Connection> dbFactory = new DatabaseConnectionFactory(
+    "jdbc:mysql://localhost:3306", "root", "password");
+Connection connection = dbFactory.create("mydb");
+```
+
+##### 工厂注册中心
+```java
+// 工厂注册中心
+public class FactoryRegistry {
+    private static final Map<String, Factory<?, ?>> registry = new ConcurrentHashMap<>();
+    
+    public static <T, R> void register(String name, Factory<T, R> factory) {
+        registry.put(name, factory);
+    }
+    
+    @SuppressWarnings("unchecked")
+    public static <T, R> Factory<T, R> getFactory(String name) {
+        return (Factory<T, R>) registry.get(name);
+    }
+    
+    public static <T, R> R create(String factoryName, T param) {
+        Factory<T, R> factory = getFactory(factoryName);
+        if (factory == null) {
+            throw new IllegalArgumentException("Factory not found: " + factoryName);
+        }
+        return factory.create(param);
+    }
+}
+
+// 注册工厂
+FactoryRegistry.register("product", new SimpleFactory<>(name -> new Product(name, "registry")));
+FactoryRegistry.register("connection", new DatabaseConnectionFactory("jdbc:mysql://localhost:3306", "root", "password"));
+
+// 使用注册中心
+Product registryProduct = FactoryRegistry.create("product", "RegistryProduct");
+Connection registryConnection = FactoryRegistry.create("connection", "testdb");
+```
+
+##### 工厂装饰器
+```java
+// 工厂装饰器
+public class LoggingFactoryDecorator<T, R> implements Factory<T, R> {
+    private final Factory<T, R> factory;
+    private final Logger logger = LoggerFactory.getLogger(LoggingFactoryDecorator.class);
+    
+    public LoggingFactoryDecorator(Factory<T, R> factory) {
+        this.factory = factory;
+    }
+    
+    @Override
+    public R create(T param) {
+        logger.info("Creating object using factory: {} with param: {}", factory.getClass().getSimpleName(), param);
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            R result = factory.create(param);
+            long duration = System.currentTimeMillis() - startTime;
+            logger.info("Object created successfully in {} ms", duration);
+            return result;
+        } catch (Exception e) {
+            logger.error("Failed to create object", e);
+            throw e;
+        }
+    }
+}
+
+// 使用工厂装饰器
+Factory<String, Product> originalFactory = new SimpleFactory<>(name -> new Product(name, "decorated"));
+Factory<String, Product> loggingFactory = new LoggingFactoryDecorator<>(originalFactory);
+Product decoratedProduct = loggingFactory.create("LoggedProduct");
+```
+
+#### 实际应用场景
+
+##### 服务层工厂
+```java
+// 服务接口
+public interface UserService {
+    User getUserById(Long id);
+    List<User> getAllUsers();
+    void saveUser(User user);
+}
+
+// 服务实现
+public class UserServiceImpl implements UserService {
+    // 实现细节
+}
+
+// 服务工厂
+public class ServiceFactory implements Factory<String, UserService> {
+    @Override
+    public UserService create(String serviceType) {
+        switch (serviceType) {
+            case "default":
+                return new UserServiceImpl();
+            case "cached":
+                return new CachedUserService(new UserServiceImpl());
+            case "transactional":
+                return new TransactionalUserService(new UserServiceImpl());
+            default:
+                throw new IllegalArgumentException("Unknown service type: " + serviceType);
+        }
+    }
+}
+
+// 使用服务工厂
+Factory<String, UserService> serviceFactory = new ServiceFactory();
+UserService defaultService = serviceFactory.create("default");
+UserService cachedService = serviceFactory.create("cached");
+```
+
+##### 配置对象工厂
+```java
+// 配置对象
+public class AppConfig {
+    private String appName;
+    private int maxConnections;
+    private boolean debugMode;
+    
+    // getters and setters
+}
+
+// 配置工厂
+public class ConfigFactory implements Factory<Map<String, Object>, AppConfig> {
+    @Override
+    public AppConfig create(Map<String, Object> configMap) {
+        AppConfig config = new AppConfig();
+        config.setAppName((String) configMap.getOrDefault("appName", "DefaultApp"));
+        config.setMaxConnections((Integer) configMap.getOrDefault("maxConnections", 10));
+        config.setDebugMode((Boolean) configMap.getOrDefault("debugMode", false));
+        return config;
+    }
+}
+
+// 使用配置工厂
+Factory<Map<String, Object>, AppConfig> configFactory = new ConfigFactory();
+Map<String, Object> configData = new HashMap<>();
+configData.put("appName", "MyApp");
+configData.put("maxConnections", 20);
+configData.put("debugMode", true);
+
+AppConfig appConfig = configFactory.create(configData);
+```
+
 ## 🚀 性能优化和最佳实践
 
 ### 性能考虑
@@ -793,6 +1499,18 @@ public class ApprovalService {
 5. **责任链性能**
    - 平均查找复杂度O(n)，建议链长度控制在10个节点以内
    - 支持提前终止，优化常见情况的性能
+
+6. **装饰器模式性能**
+   - 简单装饰器：适合单个装饰逻辑，性能开销最小
+   - 链式装饰器：装饰器数量影响性能，建议控制在5个以内
+   - 装饰器构建器：构建时一次性应用所有装饰器，适合批量处理
+   - 避免在装饰器中执行耗时操作，保持装饰逻辑轻量级
+
+7. **工厂模式性能**
+   - 简单工厂：创建对象开销最小，适合简单对象创建
+   - 抽象工厂：工厂查找复杂度O(1)，但注册/注销有性能开销
+   - 对象池工厂：适合频繁创建销毁的对象，池大小需要合理配置
+   - 建议工厂数量控制在合理范围内（<50个），避免内存占用过大
 
 ### 线程安全
 
@@ -892,6 +1610,86 @@ public void testStrategyPool() {
     assertEquals("Credit Card Payment", retrieved.doAction(PaymentMethod.CREDIT_CARD));
 }
 ```
+
+#### 装饰器模式测试
+```java
+@Test
+public void testSimpleDecorator() {
+    TextComponent original = new TextComponent("Hello World");
+    Decorator<TextComponent> decorator = new SimpleDecorator<>(original, 
+        component -> new TextComponent(component.getText().toUpperCase()));
+    
+    TextComponent decorated = decorator.getComponent();
+    assertEquals("HELLO WORLD", decorated.getText());
+    assertNotSame(original, decorated);
+}
+
+@Test
+public void testChainDecorator() {
+    TextComponent original = new TextComponent("Hello World");
+    ChainDecorator<TextComponent> chainDecorator = new ChainDecorator<>(original)
+        .addDecorator(component -> new TextComponent(component.getText().toUpperCase()))
+        .addDecorator(component -> new TextComponent("*** " + component.getText() + " ***"));
+    
+    TextComponent decorated = chainDecorator.getDecoratedComponent();
+    assertEquals("*** HELLO WORLD ***", decorated.getText());
+    assertEquals(2, chainDecorator.getDecoratorCount());
+}
+
+@Test
+public void testDecoratorBuilder() {
+    TextComponent original = new TextComponent("Hello World");
+    DecoratorBuilder<TextComponent> builder = new DecoratorBuilderImpl<>(original)
+        .add(component -> new TextComponent(component.getText().toUpperCase()))
+        .add(component -> new TextComponent(">>> " + component.getText() + " <<<"));
+    
+    TextComponent decorated = builder.build();
+    assertEquals(">>> HELLO WORLD <<<", decorated.getText());
+}
+```
+
+#### 工厂模式测试
+```java
+@Test
+public void testSimpleFactory() {
+    Factory<String, Product> factory = new SimpleFactory<>(name -> new Product(name, "test"));
+    
+    Product product = factory.create("TestProduct");
+    assertEquals("TestProduct", product.getName());
+    assertEquals("test", product.getType());
+}
+
+@Test
+public void testAbstractFactory() {
+    AbstractFactory<ProductFactoryKey, Product> factory = new AbstractFactoryImpl<>();
+    
+    factory.registerFactory("electronic", key -> new Product(key.key(), "electronic"));
+    factory.registerFactory("clothing", key -> new Product(key.key(), "clothing"));
+    
+    Product electronic = factory.create(new ProductFactoryKey("electronic"));
+    Product clothing = factory.create(new ProductFactoryKey("clothing"));
+    
+    assertEquals("electronic", electronic.getType());
+    assertEquals("clothing", clothing.getType());
+    assertEquals(2, factory.size());
+}
+
+@Test
+public void testPooledFactory() {
+    PooledFactory<String, Product> factory = new PooledFactoryImpl<>(
+        name -> new Product(name, "pooled"), 3);
+    
+    Product product1 = factory.borrowObject("Product1");
+    Product product2 = factory.borrowObject("Product2");
+    
+    factory.returnObject(product1);
+    factory.returnObject(product2);
+    
+    assertEquals(2, ((PooledFactoryImpl<String, Product>) factory).getPoolSize());
+    
+    Product product3 = factory.borrowObject("Product3");
+    assertEquals(1, ((PooledFactoryImpl<String, Product>) factory).getPoolSize());
+}
 
 ### 集成测试
 
